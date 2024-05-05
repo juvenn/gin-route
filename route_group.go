@@ -6,9 +6,12 @@
  * Use `Mount` to combine routes from multiple groups, and `Dock` to bind to
  * gin.Engine.
  */
-package ginroute
+package route
 
 import (
+	"fmt"
+	xpath "path"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,7 +21,7 @@ type routeItem struct {
 	Handlers gin.HandlersChain
 }
 
-type routeGroup struct {
+type RouteGroup struct {
 	routes     []*routeItem
 	pathPrefix string
 	handlers   gin.HandlersChain // middleware handlers for the group
@@ -27,20 +30,21 @@ type routeGroup struct {
 // Build a route group with path prefix, and a chain of middleware handlers.
 //
 // The path and handlers are applied lazily until mount or dock time.
-func NewGroup(pathPrefix string, handlers ...gin.HandlerFunc) *routeGroup {
-	return &routeGroup{
+func NewGroup(pathPrefix string, handlers ...gin.HandlerFunc) *RouteGroup {
+	return &RouteGroup{
 		pathPrefix: pathPrefix,
 		handlers:   handlers,
 	}
 }
 
 // Append more middleware handlers to the group.
-func (ctx *routeGroup) Use(handlers ...gin.HandlerFunc) {
+func (ctx *RouteGroup) Use(handlers ...gin.HandlerFunc) *RouteGroup {
 	ctx.handlers = append(ctx.handlers, handlers...)
+	return ctx
 }
 
 // Define a handler for the route.
-func (ctx *routeGroup) Handle(method string, path string, handlers ...gin.HandlerFunc) {
+func (ctx *RouteGroup) Handle(method string, path string, handlers ...gin.HandlerFunc) {
 	ctx.routes = append(ctx.routes, &routeItem{
 		Method:   method,
 		Path:     path,
@@ -49,33 +53,36 @@ func (ctx *routeGroup) Handle(method string, path string, handlers ...gin.Handle
 }
 
 // Define collection of route handlers with an ephemeral group.
-func (ctx *routeGroup) WithContext(path string, fn func(newctx *routeGroup)) {
-	newctx := NewGroup(path)
-	fn(newctx)
-	ctx.Mount("", newctx)
+func (ctx *RouteGroup) With(path string, fn func(group *RouteGroup)) {
+	group := NewGroup(path)
+	fn(group)
+	ctx.Mount("", group)
 }
 
-// Mount routes from sub groups under path prefix.
-func (ctx *routeGroup) Mount(path string, groups ...*routeGroup) {
+// Add routes from sub groups under path prefix.
+func (ctx *RouteGroup) Mount(path string, groups ...*RouteGroup) {
 	for _, group := range groups {
 		for _, route := range group.Routes() {
-			route.Path = path + route.Path
-			ctx.routes = append(ctx.routes, route)
+			ctx.routes = append(ctx.routes, &routeItem{
+				Method:   route.Method,
+				Path:     path + route.Path,
+				Handlers: route.Handlers,
+			})
 		}
 	}
 }
 
-// Dock and bind routes to gin engine.
-func (ctx *routeGroup) Dock(engine *gin.Engine) {
-	group := engine.Group("/")
+// Dock and bind routes at path to gin engine.
+func (ctx *RouteGroup) Dock(path string, engine *gin.Engine) {
+	eng := engine.Group("")
 	for _, route := range ctx.Routes() {
-		// fmt.Printf("Define %s %s\n", route.Method, route.Path)
-		group.Handle(route.Method, route.Path, route.Handlers...)
+		fullpath := prependSlash(xpath.Join(path, route.Path))
+		eng.Handle(route.Method, fullpath, route.Handlers...)
 	}
 }
 
 // Enumerate route items and apply path prefix and middleware handlers.
-func (ctx *routeGroup) Routes() []*routeItem {
+func (ctx *RouteGroup) Routes() []*routeItem {
 	items := make([]*routeItem, len(ctx.routes))
 	for i, route := range ctx.routes {
 		handlers := make([]gin.HandlerFunc, len(ctx.handlers)+len(route.Handlers))
@@ -83,9 +90,25 @@ func (ctx *routeGroup) Routes() []*routeItem {
 		copy(handlers[len(ctx.handlers):], route.Handlers)
 		items[i] = &routeItem{
 			Method:   route.Method,
-			Path:     ctx.pathPrefix + route.Path,
+			Path:     prependSlash(xpath.Join(ctx.pathPrefix, route.Path)),
 			Handlers: handlers,
 		}
 	}
 	return items
+}
+
+func (ctx *RouteGroup) PrintAll() {
+	for _, route := range ctx.Routes() {
+		fmt.Printf("%s %s %d\n", route.Method, route.Path, len(route.Handlers))
+	}
+}
+
+func prependSlash(path string) string {
+	if path == "" || path == "/" {
+		return ""
+	}
+	if path[0:1] == "/" {
+		return path
+	}
+	return "/" + path
 }

@@ -1,4 +1,4 @@
-module ginroute
+module github.com/juvenn/gin-route
 
 go 1.20
 
