@@ -8,7 +8,7 @@ func ExampleRouteGroup_Handle() {
 	photos := NewGroup("photos")
 	photos.Handle("GET", "", queryPhotos)
 	photos.Handle("GET", "/:id", getPhoto)
-	photos.PrintAll()
+	photos.printAll()
 	// Output: GET /photos 1
 	// GET /photos/:id 1
 }
@@ -18,7 +18,7 @@ func ExampleRouteGroup_Use() {
 	photos.Use(logMiddleware())
 	photos.Handle("GET", "", queryPhotos)
 	photos.Handle("GET", "/:id", getPhoto)
-	photos.PrintAll()
+	photos.printAll()
 	// Output: GET /photos 2
 	// GET /photos/:id 2
 }
@@ -29,7 +29,7 @@ func ExampleRouteGroup_Mount() {
 	photos.Handle("GET", "", queryPhotos)
 	photos.Handle("GET", "/:id", getPhoto)
 	v1.Mount("", photos)
-	v1.PrintAll()
+	v1.printAll()
 	// Output: GET /v1/photos 1
 	// GET /v1/photos/:id 1
 }
@@ -41,7 +41,7 @@ func ExampleRouteGroup_With() {
 		photos.Handle("GET", "", logMiddleware(), queryPhotos)
 		photos.Handle("GET", "/:id", getPhoto)
 	})
-	v1.PrintAll()
+	v1.printAll()
 	// Output: GET /v1/photos 3
 	// GET /v1/photos/:id 2
 }

@@ -81,23 +81,39 @@ func (ctx *RouteGroup) Dock(path string, engine *gin.Engine) {
 	}
 }
 
-// Enumerate route items and apply path prefix and middleware handlers.
+// Enumerate route items and concat path prefix and middleware handlers.
 func (ctx *RouteGroup) Routes() []*routeItem {
-	items := make([]*routeItem, len(ctx.routes))
-	for i, route := range ctx.routes {
+	items := make([]*routeItem, 0, len(ctx.routes))
+	ctx.enumerate(func(item *routeItem) bool {
+		items = append(items, item)
+		return true
+	})
+
+	// for i, route := range ctx.Enumerate {
+	// 	items[i] = route
+	// }
+	return items
+}
+
+// enumerate route items and concat path prefix and middleware handlers.
+// Each route is then applied to func yield. It can be ranged over.
+func (ctx *RouteGroup) enumerate(yield func(*routeItem) bool) {
+	for _, route := range ctx.routes {
 		handlers := make([]gin.HandlerFunc, len(ctx.handlers)+len(route.Handlers))
 		copy(handlers, ctx.handlers)
 		copy(handlers[len(ctx.handlers):], route.Handlers)
-		items[i] = &routeItem{
+		item := &routeItem{
 			Method:   route.Method,
 			Path:     prependSlash(xpath.Join(ctx.pathPrefix, route.Path)),
 			Handlers: handlers,
 		}
+		if !yield(item) {
+			return
+		}
 	}
-	return items
 }
 
-func (ctx *RouteGroup) PrintAll() {
+func (ctx *RouteGroup) printAll() {
 	for _, route := range ctx.Routes() {
 		fmt.Printf("%s %s %d\n", route.Method, route.Path, len(route.Handlers))
 	}
