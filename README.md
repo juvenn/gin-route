@@ -2,8 +2,8 @@ Composable route groups for Gin
 ----
 
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/juvenn/gin-route/build.yml?build=main&style=flat-square)](https://github.com/juvenn/gin-route/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/juvenn/gin-route)](https://goreportcard.com/report/github.com/juvenn/gin-route)
 [![GitHub Release](https://img.shields.io/github/v/release/juvenn/gin-route?style=flat-square)](https://github.com/juvenn/gin-route/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/juvenn/gin-route)](https://goreportcard.com/report/github.com/juvenn/gin-route)
 
 Composable route groups for [Gin](https://github.com/gin-gonic/gin).
 
