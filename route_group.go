@@ -1,7 +1,7 @@
 /* Composable and reusable route group for gin
  *
  * Unlike gin.RouterGroup, the defined routes are not bound to gin.Engine until
- * `Dock`, they can be reused and composed amoung route groups.
+ * `Dock`, they can be reused and composed among route groups.
  *
  * Use `Mount` to combine routes from multiple groups, and `Dock` to bind to
  * gin.Engine.
