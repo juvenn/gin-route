@@ -34,9 +34,9 @@ func ExampleRouteGroup_Mount() {
 	// GET /v1/photos/:id 1
 }
 
-func ExampleRouteGroup_With() {
+func ExampleRouteGroup_WithScope() {
 	v1 := NewGroup("/v1")
-	v1.With("photos", func(photos *RouteGroup) {
+	v1.WithScope("photos", func(photos *RouteGroup) {
 		photos.Use(logMiddleware())
 		photos.Handle("GET", "", logMiddleware(), queryPhotos)
 		photos.Handle("GET", "/:id", getPhoto)

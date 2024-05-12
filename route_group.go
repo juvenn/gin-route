@@ -10,7 +10,7 @@ package route
 
 import (
 	"fmt"
-	xpath "path"
+	urlpath "path"
 
 	"github.com/gin-gonic/gin"
 )
@@ -38,14 +38,14 @@ func NewGroup(pathPrefix string, handlers ...gin.HandlerFunc) *RouteGroup {
 }
 
 // Append more middleware handlers to the group.
-func (ctx *RouteGroup) Use(handlers ...gin.HandlerFunc) *RouteGroup {
-	ctx.handlers = append(ctx.handlers, handlers...)
-	return ctx
+func (group *RouteGroup) Use(handlers ...gin.HandlerFunc) *RouteGroup {
+	group.handlers = append(group.handlers, handlers...)
+	return group
 }
 
 // Define a handler for the route.
-func (ctx *RouteGroup) Handle(method string, path string, handlers ...gin.HandlerFunc) {
-	ctx.routes = append(ctx.routes, &routeItem{
+func (group *RouteGroup) Handle(method string, path string, handlers ...gin.HandlerFunc) {
+	group.routes = append(group.routes, &routeItem{
 		Method:   method,
 		Path:     path,
 		Handlers: handlers,
@@ -53,19 +53,19 @@ func (ctx *RouteGroup) Handle(method string, path string, handlers ...gin.Handle
 }
 
 // Define collection of route handlers with an ephemeral group.
-func (ctx *RouteGroup) With(path string, fn func(group *RouteGroup)) {
-	group := NewGroup(path)
-	fn(group)
-	ctx.Mount("", group)
+func (group *RouteGroup) WithScope(path string, fn func(subgroup *RouteGroup)) {
+	subgroup := NewGroup(path)
+	fn(subgroup)
+	group.Mount("", subgroup)
 }
 
 // Add routes from sub groups under path prefix.
-func (ctx *RouteGroup) Mount(path string, groups ...*RouteGroup) {
-	for _, group := range groups {
-		for _, route := range group.Routes() {
-			ctx.routes = append(ctx.routes, &routeItem{
+func (group *RouteGroup) Mount(path string, groups ...*RouteGroup) {
+	for _, g := range groups {
+		for _, route := range g.Routes() {
+			group.routes = append(group.routes, &routeItem{
 				Method:   route.Method,
-				Path:     path + route.Path,
+				Path:     urlpath.Join(path, route.Path),
 				Handlers: route.Handlers,
 			})
 		}
@@ -73,18 +73,18 @@ func (ctx *RouteGroup) Mount(path string, groups ...*RouteGroup) {
 }
 
 // Dock and bind routes at path to gin engine.
-func (ctx *RouteGroup) Dock(path string, engine *gin.Engine) {
+func (group *RouteGroup) Dock(path string, engine *gin.Engine) {
 	eng := engine.Group("")
-	for _, route := range ctx.Routes() {
-		fullpath := prependSlash(xpath.Join(path, route.Path))
+	for _, route := range group.Routes() {
+		fullpath := urlpath.Join(path, route.Path)
 		eng.Handle(route.Method, fullpath, route.Handlers...)
 	}
 }
 
-// Enumerate route items and concat path prefix and middleware handlers.
-func (ctx *RouteGroup) Routes() []*routeItem {
-	items := make([]*routeItem, 0, len(ctx.routes))
-	ctx.enumerate(func(item *routeItem) bool {
+// Return all route items, with path prefix and middleware concated.
+func (group *RouteGroup) Routes() []*routeItem {
+	items := make([]*routeItem, 0, len(group.routes))
+	group.enumerate(func(item *routeItem) bool {
 		items = append(items, item)
 		return true
 	})
@@ -95,16 +95,16 @@ func (ctx *RouteGroup) Routes() []*routeItem {
 	return items
 }
 
-// enumerate route items and concat path prefix and middleware handlers.
+// Enumerate route items, with path prefix and middleware concated.
 // Each route is then applied to func yield. It can be ranged over.
-func (ctx *RouteGroup) enumerate(yield func(*routeItem) bool) {
-	for _, route := range ctx.routes {
-		handlers := make([]gin.HandlerFunc, len(ctx.handlers)+len(route.Handlers))
-		copy(handlers, ctx.handlers)
-		copy(handlers[len(ctx.handlers):], route.Handlers)
+func (group *RouteGroup) enumerate(yield func(*routeItem) bool) {
+	for _, route := range group.routes {
+		handlers := make([]gin.HandlerFunc, len(group.handlers)+len(route.Handlers))
+		copy(handlers, group.handlers)
+		copy(handlers[len(group.handlers):], route.Handlers)
 		item := &routeItem{
 			Method:   route.Method,
-			Path:     prependSlash(xpath.Join(ctx.pathPrefix, route.Path)),
+			Path:     prependSlash(urlpath.Join(group.pathPrefix, route.Path)),
 			Handlers: handlers,
 		}
 		if !yield(item) {
@@ -113,14 +113,15 @@ func (ctx *RouteGroup) enumerate(yield func(*routeItem) bool) {
 	}
 }
 
-func (ctx *RouteGroup) printAll() {
-	for _, route := range ctx.Routes() {
+func (group *RouteGroup) printAll() {
+	for _, route := range group.Routes() {
 		fmt.Printf("%s %s %d\n", route.Method, route.Path, len(route.Handlers))
 	}
 }
 
+// Prepend slash if not empty
 func prependSlash(path string) string {
-	if path == "" || path == "/" {
+	if path == "" {
 		return ""
 	}
 	if path[0:1] == "/" {
