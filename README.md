@@ -31,10 +31,10 @@ func main() {
   })
   // Enumerate and print all routes
   for _, route := range photos.Routes() {
-		fmt.Printf("%s %s %d\n", route.Method, route.Path, len(route.Handlers))
-	}
+    fmt.Printf("%s %s %d\n", route.Method, route.Path, len(route.Handlers))
+  }
 
-  // dock to gin engine
+  // Bind route to gin engine
   r := gin.Default()
   photos.Dock("/v1", r)
   photos.Dock("/v2", r)
